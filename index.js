@@ -1,1 +1,124 @@
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
 
+const app = express();
+const PORT = process.env.PORT;
+
+app.use(cors());
+app.use(express.json());
+
+// Root route
+app.get("/", (req, res) => {
+  res.send("API is running");
+});
+
+// GET /api/visits/:userid
+app.get("/api/visits/:userid", async (req, res) => {
+  const userId = Number(req.params.userid);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({
+      error: "Invalid userId. Must be a positive integer.",
+    });
+  }
+
+  let gamesResponse;
+  let groupsResponse;
+  let groupGames = [];
+
+  // ---------------------------
+  // 1. Get user groups
+  // ---------------------------
+  try {
+    groupsResponse = await axios.get(
+      `https://groups.roblox.com/v2/users/${userId}/groups/roles`
+    );
+  } catch (err) {
+    groupsResponse = null;
+  }
+
+  // ---------------------------
+  // 2. Get user games
+  // ---------------------------
+  try {
+    gamesResponse = await axios.get(
+      `https://games.roblox.com/v2/users/${userId}/games`,
+      { params: { accessFilter: "Public", limit: 50 } }
+    );
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json({
+        error: "Failed to fetch games from Roblox.",
+        details: err.response.data,
+      });
+    }
+    return res.status(502).json({
+      error: "Could not reach Roblox API.",
+    });
+  }
+
+  const rawGames = gamesResponse.data?.data ?? [];
+
+  // ---------------------------
+  // 3. Get group games (rank > 250)
+  // ---------------------------
+  const groups = groupsResponse?.data?.data ?? [];
+
+  const highRankGroups = groups
+    .filter((g) => g.role && g.role.rank > 250)
+    .map((g) => g.group?.id)
+    .filter(Boolean);
+
+  if (highRankGroups.length > 0) {
+    const groupRequests = highRankGroups.map((groupId) =>
+      axios
+        .get(`https://games.roblox.com/v2/groups/${groupId}/games`)
+        .then((res) => res.data?.data ?? [])
+        .catch(() => [])
+    );
+
+    const groupResults = await Promise.all(groupRequests);
+    groupGames = groupResults.flat();
+  }
+
+  // ---------------------------
+  // 4. Merge all games
+  // ---------------------------
+  const allGamesRaw = [...rawGames, ...groupGames];
+
+  if (allGamesRaw.length === 0) {
+    return res.json({
+      userId,
+      totalVisits: 0,
+      games: [],
+    });
+  }
+
+  // ---------------------------
+  // 5. Format output
+  // ---------------------------
+  const games = allGamesRaw.map((game) => ({
+    name: game.name ?? "Unknown",
+    placeVisits: game.placeVisits ?? 0,
+  }));
+
+  // ---------------------------
+  // 6. Total visits
+  // ---------------------------
+  const totalVisits = games.reduce(
+    (sum, game) => sum + (game.placeVisits || 0),
+    0
+  );
+
+  return res.json({
+    userId,
+    totalVisits,
+    games,
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
