@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT;
 
-const VERSION = "5";
+const VERSION = "6";
 
 app.use(cors());
 app.use(express.json());
@@ -100,23 +100,30 @@ const fetchAllGroupGames = async (groupId) => {
   let allGames = [];
 
   while (true) {
-    const res = await axios.get(
-      `https://games.roblox.com/v2/groups/${groupId}/games`,
-      {
-        params: {
-          limit: 50,
-          cursor: cursor || undefined,
-        },
-      }
-    );
+    try {
+      const res = await axios.get(
+        `https://games.roblox.com/v2/groups/${groupId}/games`,
+        {
+          params: {
+            limit: 50,
+            cursor: cursor || undefined,
+          },
+        }
+      );
 
-    const data = res.data;
+      const data = res.data;
 
-    allGames = allGames.concat(data.data || []);
+      if (!data || !Array.isArray(data.data)) break;
 
-    if (!data.nextPageCursor) break;
+      allGames = allGames.concat(data.data);
 
-    cursor = data.nextPageCursor;
+      if (!data.nextPageCursor) break;
+
+      cursor = data.nextPageCursor;
+    } catch (err) {
+      console.log("Group fetch failed:", groupId);
+      break;
+    }
   }
 
   return allGames;
