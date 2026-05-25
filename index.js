@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT;
 
-const VERSION = "4";
+const VERSION = "5";
 
 app.use(cors());
 app.use(express.json());
@@ -95,17 +95,40 @@ const highRankGroups = groups
    // const groupResults = await Promise.all(groupRequests);
   //  groupGames = groupResults.flat();
 
-    const groupResults = await Promise.allSettled(
+const fetchAllGroupGames = async (groupId) => {
+  let cursor = null;
+  let allGames = [];
+
+  while (true) {
+    const res = await axios.get(
+      `https://games.roblox.com/v2/groups/${groupId}/games`,
+      {
+        params: {
+          limit: 50,
+          cursor: cursor || undefined,
+        },
+      }
+    );
+
+    const data = res.data;
+
+    allGames = allGames.concat(data.data || []);
+
+    if (!data.nextPageCursor) break;
+
+    cursor = data.nextPageCursor;
+  }
+
+  return allGames;
+};
+
+const groupResults = await Promise.all(
   highRankGroups.map((groupId) =>
-    axios.get(`https://games.roblox.com/v2/groups/${groupId}/games`)
+    fetchAllGroupGames(groupId).catch(() => [])
   )
 );
 
-groupGames = groupResults
-  .filter((r) => r.status === "fulfilled")
-  .map((r) => r.value.data?.data ?? [])
-  .flat();
-  }
+groupGames = groupResults.flat();
   
   // ---------------------------
   // 4. Merge all games
