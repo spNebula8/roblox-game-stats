@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT;
 
-const VERSION = "6";
+const VERSION = "7";
 
 app.use(cors());
 app.use(express.json());
@@ -136,6 +136,7 @@ const groupResults = await Promise.all(
 );
 
 groupGames = groupResults.flat();
+  }
   
   // ---------------------------
   // 4. Merge all games
