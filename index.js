@@ -5,7 +5,7 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT;
 
-const VERSION = "1";
+const VERSION = "2";
 
 app.use(cors());
 app.use(express.json());
@@ -83,6 +83,21 @@ const highRankGroups = groups
   .map((g) => g.group?.id)
   .filter(Boolean);
 
+  //
+  console.log("ALL GROUPS:", groups.length);
+
+console.log("HIGH RANK GROUP IDS:", highRankGroups);
+
+console.log(
+  "GROUP DETAILS:",
+  groups.map((g) => ({
+    name: g.role?.name,
+    rank: g.role?.rank,
+    groupId: g.group?.id
+  }))
+);
+  //
+
   if (highRankGroups.length > 0) {
     const groupRequests = highRankGroups.map((groupId) =>
       axios
@@ -94,7 +109,7 @@ const highRankGroups = groups
     const groupResults = await Promise.all(groupRequests);
     groupGames = groupResults.flat();
   }
-
+  
   // ---------------------------
   // 4. Merge all games
   // ---------------------------
