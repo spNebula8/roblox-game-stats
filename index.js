@@ -5,6 +5,8 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT;
 
+const VERSION = "1";
+
 app.use(cors());
 app.use(express.json());
 
@@ -65,10 +67,21 @@ app.get("/api/visits/:userid", async (req, res) => {
   // ---------------------------
   const groups = groupsResponse?.data?.data ?? [];
 
-  const highRankGroups = groups
-    .filter((g) => g.role && g.role.rank > 250)
-    .map((g) => g.group?.id)
-    .filter(Boolean);
+const highRankGroups = groups
+  .filter((g) => {
+    if (!g.role) return false;
+
+    const rankOk = g.role.rank > 250;
+
+    const nameOk =
+      typeof g.role.name === "string" &&
+      (g.role.name.toLowerCase().includes("dev") ||
+        g.role.name.toLowerCase().includes("contributor"));
+
+    return rankOk && nameOk;
+  })
+  .map((g) => g.group?.id)
+  .filter(Boolean);
 
   if (highRankGroups.length > 0) {
     const groupRequests = highRankGroups.map((groupId) =>
@@ -115,6 +128,7 @@ app.get("/api/visits/:userid", async (req, res) => {
     userId,
     totalVisits,
     games,
+    version: VERSION,
   });
 });
 
