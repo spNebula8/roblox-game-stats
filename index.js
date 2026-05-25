@@ -122,7 +122,6 @@ const fetchAllGroupGames = async (groupId) => {
       cursor = data.nextPageCursor;
     } catch (err) {
       console.log("Group fetch failed:", groupId);
-      break;
     }
   }
 
